@@ -567,27 +567,7 @@
 <script>
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1brB-qIASmsmNWh_OtZadST9zxaqPPS-xKaKSlAm_vQM/gviz/tq?tqx=out:csv&gid=1557552065";
 
-const alunosTeste = [
-  {
-    numero: "1001",
-    nome: "Bruno Lima",
-    status: "ativo",
-    validade: "30/06/2026",
-    foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
-    observacao: "Benefícios liberados"
-  },
-  {
-    numero: "1002",
-    nome: "Ana Carolina",
-    status: "ativo",
-    validade: "30/06/2026",
-    foto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
-    observacao: "Benefícios liberados"
-  }
-];
-
 let alunos = [];
-let erroPlanilha = false;
 
 function normalizar(texto) {
   return String(texto || "")
@@ -623,6 +603,23 @@ function splitCSVLine(line) {
   return result;
 }
 
+function fotoPadrao(nome) {
+  return "https://ui-avatars.com/api/?name=" + encodeURIComponent(nome || "Aluno") + "&background=0f172a&color=fff&size=300";
+}
+
+function tratarFoto(url, nome) {
+  url = String(url || "").trim();
+
+  if (!url) return fotoPadrao(nome);
+
+  const matchDrive = url.match(/id=([^&]+)/);
+  if (url.includes("drive.google.com") && matchDrive && matchDrive[1]) {
+    return "https://drive.google.com/thumbnail?id=" + matchDrive[1] + "&sz=w400";
+  }
+
+  return url;
+}
+
 function parseCSV(csv) {
   const text = String(csv || "").trim();
   if (!text || text.startsWith("<!DOCTYPE") || text.includes("ServiceLogin")) return [];
@@ -640,15 +637,16 @@ function parseCSV(csv) {
       row[header] = values[index] || "";
     });
 
+    const nome = String(row.nome || "").trim();
     const status = normalizar(row.status || "inativo");
 
     return {
       numero: String(row.numero || "").trim(),
-      nome: String(row.nome || "").trim(),
+      nome,
       status,
       validade: row.validade || "--",
-      foto: row.foto || "https://ui-avatars.com/api/?name=" + encodeURIComponent(row.nome || "Aluno") + "&background=0f172a&color=fff&size=300",
-      observacao: row.observacao || (status === "ativo" ? "Benefícios liberados" : "Aluno não consta como ativo no clube")
+      foto: tratarFoto(row.foto, nome),
+      observacao: status === "ativo" ? "Benefícios liberados" : "Aluno não consta como ativo no clube"
     };
   }).filter(a => a.numero || a.nome);
 }
@@ -661,17 +659,14 @@ async function carregarAlunos() {
 
     if (lista.length > 0) {
       alunos = lista;
-      erroPlanilha = false;
-      document.getElementById("statusLine").textContent ="" ;
+      document.getElementById("statusLine").textContent = "";
     } else {
-      alunos = alunosTeste;
-      erroPlanilha = true;
-      document.getElementById("statusLine").textContent = "Não foi possível ler a planilha. Usando dados de teste.";
+      alunos = [];
+      document.getElementById("statusLine").textContent = "Não foi possível carregar a base.";
     }
   } catch (e) {
-    alunos = alunosTeste;
-    erroPlanilha = true;
-    document.getElementById("statusLine").textContent = "Erro ao carregar a planilha. Usando dados de teste.";
+    alunos = [];
+    document.getElementById("statusLine").textContent = "Erro ao carregar a base.";
   }
 }
 
@@ -724,7 +719,7 @@ function consultar() {
       <div class="multiList">
         ${encontrados.map(a => `
           <div class="multiItem">
-            <img src="${a.foto}" alt="${a.nome}">
+            <img src="${a.foto}" alt="${a.nome}" onerror="this.src='${fotoPadrao(a.nome)}'">
             <div>
               <strong>${a.nome}</strong>
               <span>Nº ${a.numero || "--"}</span>
@@ -742,7 +737,7 @@ function consultar() {
 
   resultado.innerHTML = `
     <div class="resultTop">
-      <img class="photo" src="${aluno.foto}" alt="${aluno.nome}">
+      <img class="photo" src="${aluno.foto}" alt="${aluno.nome}" onerror="this.src='${fotoPadrao(aluno.nome)}'">
       <div>
         <div class="badge ${ativo ? "active" : "inactive"}">${ativo ? "✓" : "×"}</div>
         <p class="resultLabel ${ativo ? "active" : "inactive"}">${ativo ? "Membro ativo" : "Membro inativo"}</p>
